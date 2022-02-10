@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: GPL-3.0
+
+
+pragma solidity >=0.7.0 <0.9.0;
+
+
+contract Lottery {
+    address manager;  // 管理员
+    address payable [] players;  // 投了注的彩民
+    address payable winner;   // 上期彩票的胜出者
+    uint256 round = 1;    // 第几期
+    uint public winningReward;//中奖人获得奖金的具体金额
+    uint public winningNum; //中奖人的编号
+    //管理员属性可以在创建合约的时候进行初始化
+    constructor() { 
+    manager = msg.sender;
+    }
+    
+    //假设每次投注只能投1个以太币。
+    function play() public payable {
+        require(msg.value == 1 ether);
+        players.push(payable(msg.sender));
+    }
+
+
+    //定义一个修饰器，用于限定只有管理员角色有权执行开奖的方法
+    modifier onlyManager() {
+        require(manager == msg.sender);
+    _;
+    } 
+
+
+    //开奖方法的实现逻辑
+    function lottery() public payable {
+        // 生成随机下标
+        bytes memory x1 = abi.encodePacked(block.difficulty, block.timestamp, players.length);
+        bytes32 x2 = keccak256(x1);
+        winningNum = uint256(x2) % players.length;
+        // 获取中奖者
+        winner = players[winningNum];    
+        // 把奖池的金额转账给中奖者
+        winner.transfer(address(this).balance);
+        // 清空plays
+        delete players;
+        // 期数加1
+        round++;
+    }
+
+
+    // 退奖
+    function Refund() public onlyManager {
+        require(players.length != 0);
+        // 清空plays
+        delete players;
+        // 期数加1
+        round++;
+        // 把奖池的金额退还给每一个玩家
+        for (uint i = 0; i < players.length; i++) {
+        players[i].transfer(1 ether);
+        }
+    }
+
+
+    // 获取奖金池的金额
+    function getAmount() public view returns(uint256) {
+         return address(this).balance;
+    }
+
+
+    // 获取管理员地址
+    function getManagerAddress() public view returns(address) {
+         return manager;
+    }
+
+
+    // 返回当前期数
+    function getRound() public view returns(uint256) {
+        return round;
+    }
+
+
+    // 返回中奖者地址
+    function getWinner() public view returns(address) {
+        return winner;
+    }
+}
